@@ -5,9 +5,10 @@ import { User, UserAppSetting } from "../Interface/UserInterface";
 import { AngularFireFunctions } from '@angular/fire/functions';
 import { AngularFirestore, AngularFirestoreDocument } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { BackendService } from './backend.service';
-import { ThemeService } from './theme.service';
+import { BackendService } from './backend/backend.service';
+import { ThemeService } from './theme/theme.service';
 import { map } from 'rxjs/operators';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -18,6 +19,7 @@ export class AuthService {
   public userAppSettingDocument: AngularFirestoreDocument<UserAppSetting>;
 
   public organizationAvailable: boolean = true;
+  public completedLoadingApplication: boolean = false;
 
   user: User;
   userAppSetting: UserAppSetting;
@@ -41,9 +43,9 @@ export class AuthService {
   }
 
   async createUserData(user: User) {
-    const callable = this.functions.httpsCallable('createNewUser');
+    const callable = this.functions.httpsCallable('users');
     try {
-      const result = await callable({ uid: user.uid, photoURL: user.photoURL, displayName: user.displayName, email: user.email, phoneNumber: user.phoneNumber, providerId: user.providerId }).toPromise();
+      const result = await callable({ mode: "create", uid: user.uid, photoURL: user.photoURL, displayName: user.displayName, email: user.email, phoneNumber: user.phoneNumber, providerId: user.providerId }).toPromise();
       console.log(result);
     } catch (error) {
       console.error("Error", error);
@@ -73,7 +75,7 @@ export class AuthService {
       map(actions => {
         const data = actions.payload.data() as UserAppSetting;
         this.userAppSetting = data;
-        if (this.userAppSetting.AppKey != "") {
+        if (this.userAppSetting && this.userAppSetting.AppKey != "") {
           this.backendService.getOrgDetails(this.userAppSetting.AppKey);
           this.themeService.changeTheme(data.AppTheme);
         } else {
@@ -81,6 +83,7 @@ export class AuthService {
         }
         return { ...data }
       }));
+      this.completedLoadingApplication = true;
   }
 
   getAppKey() {
